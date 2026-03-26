@@ -2,7 +2,7 @@
    App.js — Core application logic and API layer
    ============================================================ */
 
-const API_BASE = window.location.origin;
+   const API_BASE = "https://dodge-graph-based-data-modeling-query.onrender.com";
 
 const api = {
     async get(endpoint) {

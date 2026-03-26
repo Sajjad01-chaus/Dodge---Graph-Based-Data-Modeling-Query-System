@@ -37,4 +37,3 @@ backend/data/*.xls
 # Node
 node_modules/
 test_results.txt
-backend/data
