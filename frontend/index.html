@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodge FDE — Graph Query System</title>
+    <meta name="description" content="Graph-based data modeling and LLM-powered query system for SAP Order-to-Cash data">
+
+    <!-- Cytoscape.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <circle cx="5" cy="6" r="2"/>
+                        <circle cx="19" cy="6" r="2"/>
+                        <circle cx="5" cy="18" r="2"/>
+                        <circle cx="19" cy="18" r="2"/>
+                        <line x1="9.5" y1="10.5" x2="6.5" y2="7.5"/>
+                        <line x1="14.5" y1="10.5" x2="17.5" y2="7.5"/>
+                        <line x1="9.5" y1="13.5" x2="6.5" y2="16.5"/>
+                        <line x1="14.5" y1="13.5" x2="17.5" y2="16.5"/>
+                    </svg>
+                </div>
+                <h1>Dodge FDE</h1>
+                <span class="header-subtitle">Graph Query System</span>
+            </div>
+            <div class="header-right">
+                <div class="stats-bar" id="stats-bar">
+                    <span class="stat-item" id="stat-nodes">— nodes</span>
+                    <span class="stat-divider">•</span>
+                    <span class="stat-item" id="stat-edges">— edges</span>
+                </div>
+                <button class="btn btn-ghost" id="btn-refresh" title="Refresh Graph">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                    </svg>
+                </button>
+                <button class="btn btn-ghost" id="btn-statistics" title="View Statistics">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="12" width="4" height="8"/><rect x="10" y="8" width="4" height="12"/><rect x="17" y="4" width="4" height="16"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Graph Panel -->
+            <div class="graph-panel" id="graph-panel">
+                <!-- Graph Controls -->
+                <div class="graph-controls">
+                    <div class="search-container">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" id="graph-search" placeholder="Search nodes..." class="search-input">
+                    </div>
+                    <div class="filter-chips" id="filter-chips">
+                        <button class="chip active" data-type="all">All</button>
+                        <button class="chip" data-type="Customer">Customer</button>
+                        <button class="chip" data-type="SalesOrder">Sales Order</button>
+                        <button class="chip" data-type="Delivery">Delivery</button>
+                        <button class="chip" data-type="BillingDocument">Billing</button>
+                        <button class="chip" data-type="JournalEntry">Journal</button>
+                        <button class="chip" data-type="Payment">Payment</button>
+                        <button class="chip" data-type="Material">Material</button>
+                        <button class="chip" data-type="Plant">Plant</button>
+                    </div>
+                </div>
+
+                <!-- Graph Canvas -->
+                <div id="cy" class="graph-canvas"></div>
+
+                <!-- Node Detail Panel -->
+                <div class="node-detail-panel" id="node-detail-panel">
+                    <div class="detail-header">
+                        <h3 id="detail-title">Node Details</h3>
+                        <button class="btn btn-icon" id="close-detail">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="detail-content" id="detail-content"></div>
+                    <div class="detail-actions">
+                        <button class="btn btn-primary btn-sm" id="btn-expand-node">Expand Neighbors</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-trace-flow">Trace Flow</button>
+                    </div>
+                </div>
+
+                <!-- Graph Legend -->
+                <div class="graph-legend" id="graph-legend">
+                    <div class="legend-item"><span class="legend-color" style="background:#6366f1"></span>Customer</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#f59e0b"></span>Sales Order</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#10b981"></span>Delivery</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#ec4899"></span>Billing</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#8b5cf6"></span>Journal</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#06b6d4"></span>Payment</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#f97316"></span>Material</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#84cc16"></span>Plant</div>
+                </div>
+            </div>
+
+            <!-- Resize Handle -->
+            <div class="resize-handle" id="resize-handle"></div>
+
+            <!-- Chat Panel -->
+            <div class="chat-panel" id="chat-panel">
+                <div class="chat-header">
+                    <h2>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        Query Assistant
+                    </h2>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message system-message">
+                        <div class="message-avatar system-avatar">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <circle cx="5" cy="6" r="2"/>
+                                <circle cx="19" cy="6" r="2"/>
+                                <line x1="9.5" y1="10.5" x2="6.5" y2="7.5"/>
+                                <line x1="14.5" y1="10.5" x2="17.5" y2="7.5"/>
+                            </svg>
+                        </div>
+                        <div class="message-content">
+                            <p>Welcome! I can help you explore the SAP Order-to-Cash dataset. Try asking questions like:</p>
+                            <div class="suggested-queries">
+                                <button class="suggestion" data-query="Which products are associated with the highest number of billing documents?">
+                                    📊 Top products by billing docs
+                                </button>
+                                <button class="suggestion" data-query="Show me sales orders that have been delivered but not billed">
+                                    🔍 Broken flows: delivered, not billed
+                                </button>
+                                <button class="suggestion" data-query="How many customers, orders, and deliveries are in the dataset?">
+                                    📈 Dataset overview
+                                </button>
+                                <button class="suggestion" data-query="List the top 10 customers by total order value">
+                                    👥 Top customers by value
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <textarea id="chat-input" placeholder="Ask a question about the data..." rows="1"></textarea>
+                    <button id="btn-send" class="btn btn-primary btn-send" title="Send">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Statistics Modal -->
+    <div class="modal-overlay" id="stats-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Graph Statistics</h3>
+                <button class="btn btn-icon" id="close-stats-modal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-content" id="stats-content">
+                <p class="loading-text">Loading statistics...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/app.js"></script>
+    <script src="/static/graph.js"></script>
+    <script src="/static/chat.js"></script>
+</body>
+</html>

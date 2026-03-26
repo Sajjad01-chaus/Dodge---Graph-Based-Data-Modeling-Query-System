@@ -1,0 +1,17 @@
+=== PostgreSQL ===
+URL: postgresql://postgres:Sajjad//123@db.pxernpgfseysplhukbqb.supabase.co:5432/postgres
+STATUS: FAILED
+ERROR: (psycopg2.OperationalError) connection to server at "db.pxernpgfseysplhukbqb.supabase.co" (2406:da1c:f42:ae10:4adb:5f2f:2612:493a), port 5432 failed: timeout expired
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+=== Neo4j ===
+URI: neo4j+s://a7db7926.databases.neo4j.io
+User: a7db7926
+STATUS: FAILED
+ERROR: ServiceUnavailable: Unable to retrieve routing information
+
+=== Groq ===
+Key: gsk_dar6Imcfalk...
+STATUS: FAILED
+ERROR: TypeError: Client.__init__() got an unexpected keyword argument 'proxies'
