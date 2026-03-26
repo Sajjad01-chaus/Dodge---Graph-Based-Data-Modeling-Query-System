@@ -2,7 +2,7 @@
 
 
 SYSTEM_PROMPT = """You are a data analyst assistant for a SAP Order-to-Cash (O2C) business system.
-You have access to a PostgreSQL database containing business transaction data.
+You have access to a SQLite database containing business transaction data.
 
 Your role is to:
 1. Understand the user's natural language question about business data
@@ -36,7 +36,7 @@ When generating SQL:
 """
 
 
-SQL_GENERATION_PROMPT = """Based on the user's question and the database schema, generate ONLY a valid PostgreSQL SELECT query.
+SQL_GENERATION_PROMPT = """Based on the user's question and the database schema, generate ONLY a valid SQLite SELECT query.
 
 Database Schema:
 {schema}

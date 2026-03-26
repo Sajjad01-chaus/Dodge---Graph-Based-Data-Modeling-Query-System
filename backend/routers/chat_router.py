@@ -1,8 +1,8 @@
 """Chat API router - conversational query endpoint."""
 
 from fastapi import APIRouter, HTTPException
-from models.schemas import ChatRequest, ChatResponse
-from services.llm_service import process_query
+from backend.models.schemas import ChatRequest, ChatResponse
+from backend.services.llm_service import process_query
 
 router = APIRouter(prefix="/api", tags=["chat"])
 

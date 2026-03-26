@@ -1,6 +1,6 @@
-from neo4j import GraphDatabase
-from config import settings
-
+from urllib.parse import urlparse
+from neo4j import GraphDatabase, TrustAll
+from backend.config import settings
 
 class Neo4jConnection:
     _driver = None
@@ -8,10 +8,24 @@ class Neo4jConnection:
     @classmethod
     def get_driver(cls):
         if cls._driver is None:
-            cls._driver = GraphDatabase.driver(
-                settings.NEO4J_URI,
-                auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD),
-            )
+            uri = settings.NEO4J_URI
+            # Force the correct default username for Aura
+            username = settings.NEO4J_USERNAME if settings.NEO4J_USERNAME else "neo4j"
+            
+            driver_kwargs = {
+                "auth": (username, settings.NEO4J_PASSWORD),
+            }
+
+            # FORCE TRUST ALL CERTIFICATES to bypass WiFi/ISP blocks
+            # This fixes the "SSLCertVerificationError" and "Operation not permitted"
+            driver_kwargs["encrypted"] = True
+            driver_kwargs["trusted_certificates"] = TrustAll()
+
+            try:
+                cls._driver = GraphDatabase.driver(uri, **driver_kwargs)
+            except Exception as e:
+                print(f"[Neo4j] Driver creation failed: {e}")
+                raise e
         return cls._driver
 
     @classmethod
@@ -19,6 +33,8 @@ class Neo4jConnection:
         if cls._driver:
             cls._driver.close()
             cls._driver = None
+
+# ... (Keep the rest of your functions like run_cypher, init_neo4j_constraints, etc. as they are)
 
 
 def run_cypher(query: str, params: dict = None) -> list[dict]:

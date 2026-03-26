@@ -9,6 +9,8 @@ build/
 venv/
 env/
 .venv/
+myvenv/
+myvenv
 
 # Environment
 .env
@@ -34,5 +36,5 @@ backend/data/*.xls
 
 # Node
 node_modules/
-
+test_results.txt
 backend/data

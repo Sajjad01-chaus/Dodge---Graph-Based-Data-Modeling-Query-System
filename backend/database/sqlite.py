@@ -1,10 +1,14 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from config import settings
+from backend.config import settings
 
-engine = create_engine(settings.DATABASE_URL, echo=False)
+# 1. ADDED connect_args to allow FastAPI multi-threading with SQLite
+engine = create_engine(
+    settings.DATABASE_URL, 
+    echo=False,
+    connect_args={"check_same_thread": False}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 
 def get_db():
     """Dependency for FastAPI routes."""
@@ -14,7 +18,6 @@ def get_db():
     finally:
         db.close()
 
-
 def execute_query(sql: str, params: dict = None) -> list[dict]:
     """Execute a read-only SQL query and return results as list of dicts."""
     with engine.connect() as conn:
@@ -22,40 +25,29 @@ def execute_query(sql: str, params: dict = None) -> list[dict]:
         columns = list(result.keys())
         return [dict(zip(columns, row)) for row in result.fetchall()]
 
-
 def get_table_names() -> list[str]:
-    """Return all user table names."""
+    """Return all user table names (UPDATED FOR SQLITE)."""
     with engine.connect() as conn:
+        # SQLite uses sqlite_master instead of information_schema
         result = conn.execute(
-            text(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'public' ORDER BY table_name"
-            )
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         )
         return [row[0] for row in result.fetchall()]
 
-
 def get_schema_info() -> dict:
-    """Return schema info: table -> list of {column, type}."""
+    """Return schema info (UPDATED FOR SQLITE)."""
     schema = {}
     with engine.connect() as conn:
         tables = get_table_names()
         for table in tables:
-            result = conn.execute(
-                text(
-                    "SELECT column_name, data_type "
-                    "FROM information_schema.columns "
-                    "WHERE table_schema = 'public' AND table_name = :table "
-                    "ORDER BY ordinal_position"
-                ),
-                {"table": table},
-            )
+            # SQLite uses PRAGMA table_info instead of information_schema.columns
+            result = conn.execute(text(f"PRAGMA table_info({table})"))
+            # PRAGMA returns: (id, name, type, notnull, default_value, pk)
             schema[table] = [
-                {"column": row[0], "type": row[1]} for row in result.fetchall()
+                {"column": row[1], "type": row[2]} for row in result.fetchall()
             ]
     return schema
 
-
 def init_postgres_schema():
-    """Initialize — tables are created dynamically during ingestion."""
-    print("[DB] PostgreSQL connection ready.")
+    """Initialize connection."""
+    print(f"[DB] SQLite connection ready: {settings.DATABASE_URL}")

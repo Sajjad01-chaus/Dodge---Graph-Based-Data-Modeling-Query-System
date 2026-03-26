@@ -7,10 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 
-from config import settings
-from routers import graph_router, chat_router
-from database.postgres import init_postgres_schema, get_table_names
-from database.neo4j_db import Neo4jConnection
+from backend.config import settings
+from backend.routers import graph_router, chat_router
+from backend.database.sqlite import init_postgres_schema, get_table_names
+from backend.database.neo4j_db import Neo4jConnection
 
 
 @asynccontextmanager
@@ -83,7 +83,7 @@ app.include_router(chat_router.router)
 @app.post("/api/ingest")
 async def ingest_data():
     """Trigger data ingestion from files in the data/ directory."""
-    from services.data_ingestion import run_ingestion
+    from backend.services.data_ingestion import run_ingestion
     try:
         success = run_ingestion()
         if success:
@@ -98,7 +98,7 @@ async def ingest_data():
 @app.get("/api/schema")
 async def get_schema():
     """Get database schema information."""
-    from database.postgres import get_schema_info
+    from backend.database.sqlite import get_schema_info
     return get_schema_info()
 
 

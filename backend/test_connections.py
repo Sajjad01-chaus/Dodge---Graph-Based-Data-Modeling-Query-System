@@ -1,6 +1,6 @@
 """Diagnose and test all connections with fixes applied."""
 import os, sys
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
@@ -17,45 +17,52 @@ raw_url = os.getenv("DATABASE_URL")
 results.append(f"Raw URL: {raw_url}")
 results.append("")
 
-# Issue: password 'Sajjad//123' has '//' which breaks URL parsing
-# Fix: Use SQLAlchemy URL builder with properly encoded password
+# Extract host/port/db from DATABASE_URL so we don't hardcode Supabase ports.
+parsed = urlparse(raw_url)
+db_user = parsed.username or "postgres"
+db_password = parsed.password or ""
+db_host = parsed.hostname or "localhost"
+db_port = parsed.port or 5432
+db_name = (parsed.path or "").lstrip("/") or "postgres"
+
+query = parsed.query or ""
+ssl_extra = ""
+if "sslmode=" not in query:
+    ssl_extra = ("&" if query else "?") + "sslmode=require"
+query_str = f"?{query}" if query else ""
+
+# Prefer testing the raw DATABASE_URL first (most accurate),
+# then fall back to an encoded-password variant for edge cases.
 try:
     from sqlalchemy import create_engine, text
-    from sqlalchemy.engine import URL
+    url_to_test = raw_url
+    if "sslmode=" not in (parsed.query or ""):
+        url_to_test = f"{raw_url}{ssl_extra}"
 
-    # Build URL properly to avoid password parsing issues
-    db_url = URL.create(
-        drivername="postgresql",
-        username="postgres",
-        password=os.getenv("DATABASE_URL").split(":")[2].split("@")[0],  # extract raw password
-        host="db.pxernpgfseysplhukbqb.supabase.co",
-        port=5432,
-        database="postgres",
-    )
-    results.append(f"Built URL: {db_url}")
-    engine = create_engine(db_url, echo=False, connect_args={"connect_timeout": 15})
+    results.append(f"Built URL: {url_to_test}")
+    engine = create_engine(url_to_test, echo=False, connect_args={"connect_timeout": 15})
     with engine.connect() as conn:
         row = conn.execute(text("SELECT 1 AS test")).fetchone()
         results.append(f"Query result: {row}")
-        results.append("STATUS: OK ✓")
+        results.append("STATUS: OK")
 except Exception as e:
-    results.append(f"STATUS: FAILED ✗")
+    results.append(f"STATUS: FAILED")
     results.append(f"ERROR: {type(e).__name__}: {e}")
 
 # Try alternate approach: URL-encode the password
 results.append("")
 results.append("--- Alternate: URL-encoded password ---")
 try:
-    password_encoded = quote_plus("Sajjad//123")
-    encoded_url = f"postgresql://postgres:{password_encoded}@db.pxernpgfseysplhukbqb.supabase.co:5432/postgres"
+    password_encoded = quote_plus(db_password)
+    encoded_url = f"postgresql://{db_user}:{password_encoded}@{db_host}:{db_port}/{db_name}{query_str}{ssl_extra}"
     results.append(f"Encoded URL: {encoded_url}")
     engine2 = create_engine(encoded_url, echo=False, connect_args={"connect_timeout": 15})
     with engine2.connect() as conn:
         row = conn.execute(text("SELECT 1 AS test")).fetchone()
         results.append(f"Query result: {row}")
-        results.append("STATUS: OK ✓")
+        results.append("STATUS: OK")
 except Exception as e:
-    results.append(f"STATUS: FAILED ✗")
+    results.append(f"STATUS: FAILED")
     results.append(f"ERROR: {type(e).__name__}: {e}")
 
 
@@ -82,23 +89,44 @@ except ImportError:
 results.append("")
 results.append(f"--- Attempt 1: username='{neo4j_user}' ---")
 try:
-    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_pass))
+    from urllib.parse import urlparse as _urlparse
+    from neo4j import TrustAll
+
+    _scheme = _urlparse(neo4j_uri).scheme.lower()
+    _driver_kwargs = {"auth": (neo4j_user, neo4j_pass)}
+    if _scheme in {"bolt", "neo4j"}:
+        _driver_kwargs["encrypted"] = True
+        _driver_kwargs["trusted_certificates"] = TrustAll()
+
+    driver = GraphDatabase.driver(neo4j_uri, **_driver_kwargs)
     driver.verify_connectivity()
-    results.append("STATUS: OK ✓")
+    with driver.session() as session:
+        val = session.run("RETURN 1 AS ok").single()["ok"]
+        results.append(f"Query result: {val}")
+    results.append("STATUS: OK")
     driver.close()
 except Exception as e:
-    results.append(f"STATUS: FAILED ✗")
+    results.append(f"STATUS: FAILED")
     results.append(f"ERROR: {type(e).__name__}: {e}")
 
 # Try with standard 'neo4j' username
 results.append(f"--- Attempt 2: username='neo4j' ---")
 try:
-    driver = GraphDatabase.driver(neo4j_uri, auth=("neo4j", neo4j_pass))
+    _scheme = _urlparse(neo4j_uri).scheme.lower()
+    _driver_kwargs = {"auth": ("neo4j", neo4j_pass)}
+    if _scheme in {"bolt", "neo4j"}:
+        _driver_kwargs["encrypted"] = True
+        _driver_kwargs["trusted_certificates"] = TrustAll()
+
+    driver = GraphDatabase.driver(neo4j_uri, **_driver_kwargs)
     driver.verify_connectivity()
-    results.append("STATUS: OK ✓")
+    with driver.session() as session:
+        val = session.run("RETURN 1 AS ok").single()["ok"]
+        results.append(f"Query result: {val}")
+    results.append("STATUS: OK")
     driver.close()
 except Exception as e:
-    results.append(f"STATUS: FAILED ✗")
+    results.append(f"STATUS: FAILED")
     results.append(f"ERROR: {type(e).__name__}: {e}")
 
 
@@ -126,18 +154,23 @@ try:
         max_tokens=5,
     )
     results.append(f"Response: {resp.choices[0].message.content}")
-    results.append("STATUS: OK ✓")
+    results.append("STATUS: OK")
 except TypeError as e:
-    results.append(f"STATUS: FAILED ✗ (package version issue)")
+    results.append(f"STATUS: FAILED (package version issue)")
     results.append(f"ERROR: {e}")
     results.append("FIX: Run 'pip install --upgrade groq'")
 except Exception as e:
-    results.append(f"STATUS: FAILED ✗")
+    results.append(f"STATUS: FAILED")
     results.append(f"ERROR: {type(e).__name__}: {e}")
 
 
 # ========== Write results ==========
 output = "\n".join(results)
-with open("test_results.txt", "w") as f:
+# Change this:
+# with open("test_results.txt", "w") as f:
+#     f.write(output)
+
+# To this:
+with open("test_results.txt", "w", encoding="utf-8") as f:
     f.write(output)
 print(output, flush=True)

@@ -1,7 +1,7 @@
 """Graph API router — endpoints for graph visualization and exploration."""
 
 from fastapi import APIRouter, Query, HTTPException
-from services.graph_service import (
+from backend.services.graph_service import (
     get_graph_overview,
     get_node_detail,
     expand_node,

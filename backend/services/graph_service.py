@@ -1,6 +1,6 @@
 """Graph service — higher level graph operations using Neo4j."""
 
-from database.neo4j_db import run_cypher, get_graph_data, get_node_neighbors, search_nodes
+from backend.database.neo4j_db import run_cypher, get_graph_data, get_node_neighbors, search_nodes
 
 
 def get_graph_overview(limit: int = 200) -> dict:
@@ -194,6 +194,49 @@ def get_broken_flows() -> dict:
         "billed_not_delivered": billed_not_delivered,
         "billed_no_journal": billed_no_journal,
         "total_issues": len(delivered_not_billed) + len(billed_not_delivered) + len(billed_no_journal),
+    }
+
+
+def trace_billing_document_flow(billing_doc_id: str) -> dict:
+    """Deterministically trace O2C flow for a given BillingDocument id."""
+    result = run_cypher(
+        """
+        MATCH (b:BillingDocument {id: $bid})
+        OPTIONAL MATCH (d:Delivery)-[:BILLED_AS]->(b)
+        OPTIONAL MATCH (so:SalesOrder)-[:DELIVERED_VIA]->(d)
+        OPTIONAL MATCH (c:Customer)-[:PLACED_ORDER]->(so)
+        OPTIONAL MATCH (b)-[:JOURNALED_AS]->(j:JournalEntry)
+        OPTIONAL MATCH (j)-[:PAID_VIA]->(pay:Payment)
+        RETURN
+          c.id AS customer_id,
+          so.id AS sales_order_id,
+          d.id AS delivery_id,
+          b.id AS billing_doc_id,
+          collect(DISTINCT j.id) AS journal_entry_ids,
+          collect(DISTINCT pay.id) AS payment_ids
+        """,
+        {"bid": billing_doc_id},
+    )
+
+    if not result:
+        return {
+            "billing_doc_id": billing_doc_id,
+            "customer_id": None,
+            "sales_order_id": None,
+            "delivery_id": None,
+            "journal_entry_ids": [],
+            "payment_ids": [],
+        }
+
+    r = result[0]
+    # The driver may return None for empty lists; normalize to [].
+    return {
+        "billing_doc_id": r.get("billing_doc_id"),
+        "customer_id": r.get("customer_id"),
+        "sales_order_id": r.get("sales_order_id"),
+        "delivery_id": r.get("delivery_id"),
+        "journal_entry_ids": r.get("journal_entry_ids") or [],
+        "payment_ids": r.get("payment_ids") or [],
     }
 
 

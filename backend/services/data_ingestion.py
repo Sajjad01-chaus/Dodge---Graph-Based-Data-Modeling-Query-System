@@ -3,8 +3,8 @@
 import os
 import json
 import pandas as pd
-from database.postgres import engine
-from database.neo4j_db import run_cypher, init_neo4j_constraints
+from backend.database.sqlite import engine
+from backend.database.neo4j_db import run_cypher, init_neo4j_constraints
 from sqlalchemy import text
 
 
@@ -454,3 +454,7 @@ def run_ingestion():
 
     print("\n[Ingest] === Ingestion complete ===")
     return True
+
+# THIS IS THE PART THAT TRIGGERS THE ACTUAL WORK
+if __name__ == "__main__":
+    run_ingestion()
