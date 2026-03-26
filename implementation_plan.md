@@ -2,10 +2,8 @@
 
 ## Overview
 
-Build a production-level system that ingests business transaction data, stores it in **PostgreSQL** (relational) and **Neo4j** (graph), visualizes entity relationships via **Cytoscape.js**, and provides an LLM-powered conversational query interface using **Groq**.
+Build a production-level system that ingests business transaction data, stores it in **SQLite** (relational) and **Neo4j** (graph), visualizes entity relationships via **Cytoscape.js**, and provides an LLM-powered conversational query interface using **Groq**.
 
-> [!IMPORTANT]
-> **Deadline**: March 26, 11:59 PM IST. Speed of execution is evaluated.
 
 ---
 
@@ -14,7 +12,7 @@ Build a production-level system that ingests business transaction data, stores i
 | Layer | Technology | Rationale |
 |-------|-----------|-----------|
 | **Backend** | Python + FastAPI | Async, auto-docs, production-ready |
-| **Relational DB** | PostgreSQL | Robust, production-grade, complex SQL support |
+| **Relational DB** | SQLite | Robust, production-grade, complex SQL support |
 | **Graph DB** | Neo4j (Aura Free Tier) | Native graph storage, Cypher queries, relationship-first design |
 | **Graph Visualization** | Cytoscape.js | Interactive expand/collapse, node inspection |
 | **Frontend** | HTML/CSS/JS | Simple, no build step, fast iteration |
@@ -32,7 +30,7 @@ Dodge_FDE_project/
 │   ├── config.py                # Environment config (DB URLs, API keys)
 │   ├── requirements.txt         # Python dependencies
 │   ├── database/
-│   │   ├── postgres.py          # PostgreSQL connection + schema
+│   │   ├── sqlite.py          # PostgreSQL connection + schema
 │   │   ├── neo4j_db.py          # Neo4j driver + Cypher helpers
 │   │   └── schema.sql           # PostgreSQL schema definition
 │   ├── services/
@@ -64,7 +62,7 @@ Dodge_FDE_project/
 
 ### 1. Data Ingestion & Storage
 - Parse dataset with `pandas`
-- Load into **PostgreSQL** tables: `customers`, `sales_orders`, `order_items`, `deliveries`, `invoices`, `payments`, `products`, `addresses`
+- Load into **SQLite** tables: `customers`, `sales_orders`, `order_items`, `deliveries`, `invoices`, `payments`, `products`, `addresses`
 - Simultaneously create **Neo4j** nodes + relationships via Cypher `MERGE` statements
 - Foreign keys in PG, relationship edges in Neo4j
 
